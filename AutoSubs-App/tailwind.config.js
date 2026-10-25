@@ -9,6 +9,18 @@ export default {
   ],
   theme: {
   	extend: {
+  		fontFamily: {
+  			sans: ['var(--font-sans)'],
+  			serif: ['var(--font-serif)'],
+  			mono: ['var(--font-mono)']
+  		},
+  		transitionDuration: {
+  			DEFAULT: '100ms',
+  			'250': '250ms'
+  		},
+  		transitionTimingFunction: {
+  			smooth: 'cubic-bezier(0.32, 0.72, 0, 1)'
+  		},
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
@@ -82,14 +94,46 @@ export default {
   				to: {
   					height: '0'
   				}
+  			},
+  			'highlight-fade': {
+  				'0%': {
+  					backgroundColor: 'rgb(254 240 138)',
+  					borderColor: 'rgb(250 204 21)'
+  				},
+  				'100%': {
+  					backgroundColor: 'transparent',
+  					borderColor: 'transparent'
+  				}
+  			},
+  			'highlight-fade-dark': {
+  				'0%': {
+  					backgroundColor: 'rgb(113 63 18 / 0.3)',
+  					borderColor: 'rgb(161 98 7)'
+  				},
+  				'100%': {
+  					backgroundColor: 'transparent',
+  					borderColor: 'transparent'
+  				}
+  			},
+  			'slide-up': {
+  				from: {
+  					transform: 'translateY(100%)',
+  					opacity: '0'
+  				},
+  				to: {
+  					transform: 'translateY(0)',
+  					opacity: '1'
+  				}
   			}
   		},
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out'
+  			'accordion-up': 'accordion-up 0.2s ease-out',
+  			'highlight-fade': 'highlight-fade 1s ease-out forwards',
+  			'highlight-fade-dark': 'highlight-fade-dark 1s ease-out forwards',
+  			'slide-up': 'slide-up 0.3s ease-out'
   		}
   	}
   },
   plugins: [tailwindcssAnimate],
 }
-

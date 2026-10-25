@@ -1,30 +1,31 @@
-use crate::transcribe::{transcribe_audio, FrontendTranscribeOptions};
-use tauri::test::{mock_builder, mock_context, noop_assets};
-use std::process::Command;
+use crate::transcription_api::{FrontendTranscribeOptions, density_char_limits, transcribe_audio};
 use std::fs;
+use tauri::test::{mock_builder, mock_context, noop_assets};
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    #[test]
+    fn density_char_limits_profiles() {
+        let en = density_char_limits("en".into());
+        assert_eq!((en.less, en.standard, en.more), (27, 38, 49));
+
+        let ja = density_char_limits("ja".into());
+        assert_eq!((ja.less, ja.standard, ja.more), (14, 20, 26));
+
+        let auto = density_char_limits("auto".into());
+        assert_eq!((auto.less, auto.standard, auto.more), (en.less, en.standard, en.more));
+    }
+
     // run with cargo test transcribe_audio_smoke -- --nocapture
     #[tokio::test(flavor = "multi_thread")]
     async fn transcribe_audio_smoke() {
-        whisper_rs::install_logging_hooks();
-        println!("whisper.cpp version: {}", whisper_rs::WHISPER_CPP_VERSION);
         let app = mock_builder()
             .plugin(tauri_plugin_shell::init())
             .build(mock_context(noop_assets()))
             .expect("failed to build test app");
         let handle = app.handle().clone();
-
-        // Ensure ffprobe is available in PATH (sidecars are not used under mock runtime)
-        let has_ffprobe = Command::new("ffprobe").arg("-version").output().is_ok();
-
-        if !has_ffprobe {
-            eprintln!("Skipping transcribe_audio_smoke: ffprobe not found in PATH.");
-            return;
-        }
 
         // Use a portable test asset path (avoid absolute machine paths)
         let wav = format!("{}/tests/data/test-audio.wav", env!("CARGO_MANIFEST_DIR"));
@@ -35,10 +36,29 @@ mod tests {
             model: "tiny.en".into(),
             lang: Some("en".into()),
             translate: Some(false),
+            target_language: None,
             enable_dtw: Some(false),
             enable_gpu: Some(true),
             enable_diarize: Some(false),
+            enable_forced_alignment: Some(false),
+            enable_vad: None,
             max_speakers: None,
+            diarize_backend: None,
+            density: None,
+            max_lines: None,
+            custom_max_chars_per_line: None,
+            custom_max_words_per_line: None,
+            text_case: None,
+            remove_punctuation: None,
+            censored_words: None,
+            censor_style: None,
+            custom_prompt: None,
+            asr_model_path: None,
+            vad_model_path: None,
+            diarize_segment_path: None,
+            diarize_embedding_path: None,
+            diarize_sortformer_path: None,
+            aligner_model_dir: None,
         };
 
         let res = transcribe_audio(handle, options).await;
@@ -50,8 +70,8 @@ mod tests {
                 "{}/tests/data/transcript-smoke.json",
                 env!("CARGO_MANIFEST_DIR")
             );
-            let json = serde_json::to_string_pretty(&transcript)
-                .expect("failed to serialize transcript");
+            let json =
+                serde_json::to_string_pretty(&transcript).expect("failed to serialize transcript");
             fs::write(&out_path, json).expect("failed to write transcript file");
             eprintln!("Saved transcript to {}", out_path);
         }
@@ -61,19 +81,11 @@ mod tests {
     // run with: cargo test transcribe_audio_with_vad -- --nocapture
     #[tokio::test(flavor = "multi_thread")]
     async fn transcribe_audio_with_vad() {
-        //whisper_rs::install_logging_hooks();
         let app = mock_builder()
             .plugin(tauri_plugin_shell::init())
             .build(mock_context(noop_assets()))
             .expect("failed to build test app");
         let handle = app.handle().clone();
-
-        // Ensure ffprobe is available in PATH (sidecars are not used under mock runtime)
-        let has_ffprobe = Command::new("ffprobe").arg("-version").output().is_ok();
-        if !has_ffprobe {
-            eprintln!("Skipping transcribe_audio_with_vad: ffprobe not found in PATH.");
-            return;
-        }
 
         let wav = format!("{}/tests/data/jfk.wav", env!("CARGO_MANIFEST_DIR"));
 
@@ -83,10 +95,29 @@ mod tests {
             model: "tiny.en".into(),
             lang: Some("en".into()),
             translate: Some(false),
-            enable_dtw: Some(false),
+            target_language: None,
+            enable_dtw: Some(true),
             enable_gpu: Some(true),
-            enable_diarize: Some(false),
+            enable_diarize: Some(true),
+            enable_forced_alignment: Some(false),
+            enable_vad: Some(true),
             max_speakers: None,
+            diarize_backend: None,
+            density: None,
+            max_lines: None,
+            custom_max_chars_per_line: None,
+            custom_max_words_per_line: None,
+            text_case: None,
+            remove_punctuation: None,
+            censored_words: None,
+            censor_style: None,
+            custom_prompt: None,
+            asr_model_path: None,
+            vad_model_path: None,
+            diarize_segment_path: None,
+            diarize_embedding_path: None,
+            diarize_sortformer_path: None,
+            aligner_model_dir: None,
         };
 
         let res = transcribe_audio(handle, options).await;

@@ -1,7 +1,5 @@
 name: Package AutoSubs for MacOS and Linux
 on:
-  release:
-    types: [released]
   workflow_dispatch:
     inputs:
       tag:
@@ -22,12 +20,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: macos-15
+          - platform: macos-26
             arch: arm64
             target: aarch64-apple-darwin
             features: mac-aarch
             pkg_suffix: ARM
-          - platform: macos-13
+          - platform: macos-26-intel
             arch: x86_64
             target: x86_64-apple-darwin
             features: mac-x86_64
@@ -46,16 +44,25 @@ jobs:
           exit 1
         fi
         
-    - name: Use Xcode 16.4 (ARM only)
-      if: matrix.arch == 'arm64'
+    - name: Configure Xcode toolchain
       run: |
-        sudo xcode-select -s /Applications/Xcode_16.4.app
-        echo "DEVELOPER_DIR=/Applications/Xcode_16.4.app/Contents/Developer" >> $GITHUB_ENV
+        # Link against the macOS 26 (Tahoe) SDK so the packaged app gets the
+        # same titlebar / traffic-light layout we see in local dev. AppKit
+        # chooses the new Tahoe titlebar metrics based on the SDK the binary is
+        # linked against, NOT the deployment target — building against an older
+        # SDK (the previous Xcode 16.4 / macOS 15 SDK pin) made the traffic
+        # lights sit too low when the app runs on Tahoe. Both the macos-26 (ARM)
+        # and macos-26-intel runners' default Xcode (26.x) provides the Tahoe
+        # SDK. Deployment target stays 13.3 so we keep supporting macOS 13.3+ at
+        # runtime.
         echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> $GITHUB_ENV
         echo "MACOSX_DEPLOYMENT_TARGET=13.3" >> $GITHUB_ENV
         echo "CC=$(xcrun -f clang)" >> $GITHUB_ENV
         echo "CXX=$(xcrun -f clang++)" >> $GITHUB_ENV
-    
+
+        # Print the resolved toolchain so the SDK version is visible in CI logs
+        # (expect macOS 26.x). If it ever regresses to 15.x the lights will drift
+        # again, so this is the first thing to check.
         xcodebuild -version
         xcrun --sdk macosx --show-sdk-version
         xcrun --sdk macosx --show-sdk-path
@@ -107,10 +114,10 @@ jobs:
       
     - name: Install Dependencies
       run: |
-        cd AutoSubs-App
-        npm install
+        npm ci --prefix Adobe-Extension
+        npm ci --prefix AutoSubs-App
 
-    - name: Download ffmpeg/ffprobe binaries
+    - name: Download ffmpeg binary
       env:
         GH_TOKEN: ${{ secrets.GH_TOKEN }}
       run: |
@@ -123,25 +130,41 @@ jobs:
         if [ "${{ matrix.arch }}" = "arm64" ]; then
           ZIP_NAME="ffmpeg-aarch64-apple-darwin.zip"
           FFMPEG_SRC="ffmpeg-aarch64-apple-darwin"
-          FFPROBE_SRC="ffprobe-aarch64-apple-darwin"
         else
           # Fallback to x86_64 naming if runner arch isn't arm64
           ZIP_NAME="ffmpeg-x86_64-apple-darwin.zip"
           FFMPEG_SRC="ffmpeg-x86_64-apple-darwin"
-          FFPROBE_SRC="ffprobe-x86_64-apple-darwin"
         fi
 
-        # Download the appropriate archive from the ffmpeg-binaries repo
-        gh release download \
-          --repo tmoroney/ffmpeg-binaries \
-          --pattern "$ZIP_NAME" \
-          --clobber
+        gh --version
+        # This should not print the token; it just confirms auth is wired up.
+        gh auth status -h github.com || true
+
+        # Download the appropriate archive from the ffmpeg-binaries repo.
+        # GitHub-hosted runners can occasionally hit transient API/network
+        # failures, so retry before failing the whole packaging job.
+        for i in 1 2 3 4 5; do
+          echo "Attempt $i: downloading $ZIP_NAME from tmoroney/ffmpeg-binaries..."
+          if gh release download \
+              --repo tmoroney/ffmpeg-binaries \
+              --pattern "$ZIP_NAME" \
+              --clobber; then
+            break
+          fi
+
+          if [ "$i" -eq 5 ]; then
+            echo "ERROR: failed to download $ZIP_NAME after $i attempts" >&2
+            exit 1
+          fi
+
+          sleep $((i * 5))
+        done
 
         # Unzip directly into current folder (junk paths to avoid nested dirs)
         unzip -jo "$ZIP_NAME"
 
         # Ensure executables (keep architecture-specific names expected by Tauri v2)
-        chmod +x "$FFMPEG_SRC" "$FFPROBE_SRC"
+        chmod +x "$FFMPEG_SRC"
 
         # Cleanup archive
         rm -f "$ZIP_NAME"
@@ -304,36 +327,13 @@ jobs:
             pkg-config \
             libvulkan-dev \
             mesa-vulkan-drivers \
-            unzip
-          # optional:
-          #  vulkan-validationlayers
-
-      - name: Download ffmpeg/ffprobe binaries (Linux)
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: |
-          set -euo pipefail
-          cd AutoSubs-App/src-tauri
-          mkdir -p binaries
-          cd binaries
-
-          ZIP_NAME="ffmpeg-x86_64-unknown-linux-gnu.zip"
-          FFMPEG_SRC="ffmpeg-x86_64-unknown-linux-gnu"
-          FFPROBE_SRC="ffprobe-x86_64-unknown-linux-gnu"
-
-          gh release download \
-            --repo tmoroney/ffmpeg-binaries \
-            --pattern "$ZIP_NAME" \
-            --clobber
-
-          unzip -jo "$ZIP_NAME"
-          chmod +x "$FFMPEG_SRC" "$FFPROBE_SRC"
-          rm -f "$ZIP_NAME"
+            unzip \
+            rpm
 
       - name: Install NPM deps
         run: |
-          cd AutoSubs-App
-          npm install
+          npm ci --prefix Adobe-Extension
+          npm ci --prefix AutoSubs-App
 
       - name: Build Tauri (Linux x86_64)
         run: |
@@ -343,113 +343,51 @@ jobs:
           # Disable default features (mac-specific) for Linux build
           npm run tauri build -- -- --no-default-features --features linux
 
-      - name: Collect Linux artifacts (.deb only)
+      - name: Collect Linux artifacts
         run: |
           set -euo pipefail
           LINUX_BUNDLE_DIR="AutoSubs-App/src-tauri/target/release/bundle"
-          # Debian package lives under bundle/deb
+
           DEB_FILE=$(ls -1 "$LINUX_BUNDLE_DIR/deb"/*.deb 2>/dev/null | head -n1 || true)
-          OUT_NAME="AutoSubs-linux-x86_64.deb"
           if [ -n "$DEB_FILE" ]; then
-            cp "$DEB_FILE" "$OUT_NAME"
+            cp "$DEB_FILE" "AutoSubs-linux-x86_64.deb"
           else
-            echo "WARNING: .deb package not found in $LINUX_BUNDLE_DIR/deb"
+            echo "ERROR: .deb package not found in $LINUX_BUNDLE_DIR/deb"
+            exit 1
           fi
 
-      - name: Upload Linux artifacts to Release (.deb only)
+          RPM_FILE=$(ls -1 "$LINUX_BUNDLE_DIR/rpm"/*.rpm 2>/dev/null | head -n1 || true)
+          if [ -n "$RPM_FILE" ]; then
+            cp "$RPM_FILE" "AutoSubs-linux-x86_64.rpm"
+          else
+            echo "ERROR: .rpm package not found in $LINUX_BUNDLE_DIR/rpm"
+            exit 1
+          fi
+
+      - name: Upload Linux artifacts to Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            *.deb
+            AutoSubs-linux-x86_64.deb
+            AutoSubs-linux-x86_64.rpm
           token: ${{ secrets.GH_TOKEN }}
           tag_name: ${{ env.TAG }}
 
-  compose-latest-json:
-    needs: [build-mac]
+  trigger-updater-json:
+    name: Trigger updater JSON generation
+    needs: [build-mac, build-linux]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Ensure jq is available
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y jq
-
-      - name: Compose latest.json with macOS and Windows artifacts
+      - name: Trigger generate-updater-json workflow
         env:
-          TAG: ${{ env.TAG }}
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          set -euo pipefail
-          if [ -z "${TAG}" ]; then
-            echo "ERROR: TAG is empty. Ensure this workflow is triggered from a Release event or provide the 'tag' input when using workflow_dispatch."
-            exit 1
-          fi
-          mkdir -p latest
-
-          # Download signature files from the release assets
-          gh release download "$TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --pattern "AutoSubs-macos-aarch64.app.tar.gz.sig" \
-            --dir latest \
-            --clobber
-
-          gh release download "$TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --pattern "AutoSubs-macos-x86_64.app.tar.gz.sig" \
-            --dir latest \
-            --clobber
-
-          gh release download "$TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --pattern "AutoSubs-windows-x86_64.exe.sig" \
-            --dir latest \
-            --clobber || true
-
-          ARM_SIG="$(cat latest/AutoSubs-macos-aarch64.app.tar.gz.sig)"
-          INTEL_SIG="$(cat latest/AutoSubs-macos-x86_64.app.tar.gz.sig)"
-          WINDOWS_SIG="$(cat latest/AutoSubs-windows-x86_64.exe.sig 2>/dev/null || true)"
-
-          VERSION="${TAG#v}"
-          PUB_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-          NOTES='${{ github.event.release.name }}'
-
-          JSON_OUTPUT=$(jq -n \
-            --arg version "$VERSION" \
-            --arg pub_date "$PUB_DATE" \
-            --arg notes "$NOTES" \
-            --arg arm_sig "$ARM_SIG" \
-            --arg intel_sig "$INTEL_SIG" \
-            --arg windows_sig "$WINDOWS_SIG" \
-            --arg tag "$TAG" \
-            '{
-              version: $version,
-              pub_date: $pub_date,
-              notes: $notes,
-              platforms: {
-                "darwin-aarch64": {
-                  signature: $arm_sig,
-                  url: ("https://github.com/" + env.GITHUB_REPOSITORY + "/releases/download/" + $tag + "/AutoSubs-macos-aarch64.app.tar.gz")
-                },
-                "darwin-x86_64": {
-                  signature: $intel_sig,
-                  url: ("https://github.com/" + env.GITHUB_REPOSITORY + "/releases/download/" + $tag + "/AutoSubs-macos-x86_64.app.tar.gz")
-                },
-                "windows-x86_64": (
-                  if ($windows_sig | length) > 0 then
-                    { signature: $windows_sig,
-                      url: ("https://github.com/" + env.GITHUB_REPOSITORY + "/releases/download/" + $tag + "/AutoSubs-windows-x86_64.exe") }
-                  else empty end
-                )
-              }
-            }')
-          echo "$JSON_OUTPUT" > latest.json
-
-      - name: Upload unified latest.json to Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: latest.json
-          token: ${{ secrets.GH_TOKEN }}
-          tag_name: ${{ env.TAG }}
+          # Generate the updater JSON once the Mac and Linux builds are uploaded.
+          # The same workflow is also triggered by the Windows upload script after
+          # the Windows .exe and .sig are added. The workflow itself checks whether
+          # all required signatures are present before generating latest.json, and
+          # whether every release asset (Mac, Windows, Linux) is present before
+          # marking the release as latest, so whichever upload finishes last wins.
+          gh workflow run generate-updater-json.yml \
+            --repo ${{ github.repository }} \
+            -f tag="${{ env.TAG }}"

@@ -1,9 +1,20 @@
+[workspace]
+members = [
+  ".",
+  "crates/diarize",
+  "crates/transcription-engine",
+]
+resolver = "2"
+
 [package]
 name = "autosubs"
-version = "3.0.8"
+version = "3.11.0"
 description = "Transcribe and diarize audio files"
 authors = ["Tom Moroney"]
 edition = "2024"
+
+[env]
+WHISPER_NO_VULKAN = "1"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -17,8 +28,11 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
+[dev-dependencies]
+tauri = { version = "2", features = ["test"] }
+
 [dependencies]
-tauri = { version = "2", features = ["protocol-asset", "devtools", "test"] }
+tauri = { version = "2", features = ["protocol-asset"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri-plugin-http = "2"
@@ -29,47 +43,56 @@ tauri-plugin-process = "2"
 tauri-plugin-shell = "2"
 tauri-plugin-clipboard-manager = "2"
 tauri-plugin-opener = "2"
+tauri-plugin-single-instance = "2"
+tauri-plugin-cli = "2"
 
 reqwest = { version = "0.11", features = ["json", "blocking"] }
 
 # Add tokio for asynchronous runtime
 tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = "0.20"
+futures-util = "0.3"
 tauri-plugin-os = "2"
 
-# Add transcription and diarization dependencies
-whisper-rs = { git = "https://codeberg.org/tazz4843/whisper-rs.git", default-features = false, features = ["tracing_backend"] }
-pyannote-rs = { git = "https://github.com/tmoroney/pyannote-rs", branch = "main"}
-num = "0.4.1"
-once_cell = "1.19.0"
-which = "6.0.1"
-eyre = "0.6.12"
-hound = "3.5.1"
+# Transcription engine
+transcription-engine = { path = "crates/transcription-engine", default-features = false }
+
+# Core utilities
+eyre = "0.6"
 tempfile = "3.9.0"
 chrono = "0.4.38"
-tracing = "0.1.41"
-tracing-subscriber = "0.3.19"
-tracing-appender = "0.2"
-ort-sys = "=2.0.0-rc.9" # prevents error with pyannote-rs
-hf-hub = "0.4.3"
+which = "6.0"
 dirs = "5.0"
-zip = { version = "4.3.0", default-features = false, features = ["deflate"] }
-regex = "1"
+once_cell = "1.19.0"
+
+# Logging
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+tracing-appender = "0.2"
+tauri-plugin-window-state = "2"
+base64 = "0.22.1"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
 
+[target.'cfg(target_os = "macos")'.dependencies]
+# Runtime override of NSWindow `zoom:` (see `install_smooth_zoom`).
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSGeometry"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSWindow", "NSScreen", "NSAnimation", "NSAnimationContext", "NSResponder", "NSGraphics"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+winreg = "0.55"
+# WideCharToMultiByte + GetShortPathNameW for ANSI-safe Resolve script paths.
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Globalization",
+    "Win32_Storage_FileSystem",
+] }
+
 [features]
 default = ["mac-aarch"]
-coreml = ["whisper-rs/coreml", "pyannote-rs/coreml"]
-directml = ["pyannote-rs/directml"]
-cuda = ["whisper-rs/cuda", "pyannote-rs/load-dynamic"]
-openblas = ["whisper-rs/openblas"]
-metal = ["whisper-rs/metal"]
-rocm = ["whisper-rs/hipblas"]
-vulkan = ["whisper-rs/vulkan"]
-
-# Platform/arch presets
-mac-aarch = ["coreml", "metal"]
-mac-x86_64 = ["metal"]
-windows = ["vulkan", "directml"]  # All GPU acceleration (AMD/Intel/NVIDIA via Vulkan + DirectML)
-linux = ["vulkan"]
+mac-aarch = ["transcription-engine/mac-aarch"]
+mac-x86_64 = ["transcription-engine/mac-x86_64"]
+windows = ["transcription-engine/windows"]
+linux = ["transcription-engine/linux"]
