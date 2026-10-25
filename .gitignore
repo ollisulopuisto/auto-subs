@@ -32,3 +32,12 @@ node_modules/
 /Adobe-Extension/archive
 .codemaps/
 /AutoSubs-App/src-tauri/gen-resolve-linux/
+
+# Backup and temporary files
+*~
+*.bak
+*.backup
+*.swp
+*.swo
+*.tmp
+

@@ -42,7 +42,7 @@ fn main() {
 
         // Also be explicit about the minimum macOS version for the driver.
         // Trim a trailing .0 to accommodate values like 13.3.0 vs 13.3.
-        let min_ver_driver = min_ver.trim_end_matches('.').trim_end_matches('0');
+        let min_ver_driver = min_ver.strip_suffix(".0").unwrap_or(&min_ver);
         if !min_ver_driver.is_empty() {
             println!("cargo:rustc-link-arg=-mmacosx-version-min={}", min_ver_driver);
         }

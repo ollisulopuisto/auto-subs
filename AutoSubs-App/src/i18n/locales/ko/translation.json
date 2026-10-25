@@ -160,6 +160,10 @@
       "json": {
         "title": "원본 JSON (.json)",
         "description": "단어 시간, 화자, 수정 내용 포함"
+      },
+      "fcpxml": {
+        "title": "FCPXML 타이틀 (.fcpxml)",
+        "description": "스타일 편집이 가능한 Final Cut Pro 타이틀."
       }
     },
     "exportTab": "내보내기",
@@ -169,7 +173,8 @@
     "importFile": "파일 가져오기",
     "importTab": "가져오기",
     "selected": "선택됨:",
-    "supportsSrt": ".srt 파일 지원"
+    "supportsSrt": ".srt 파일 지원",
+    "exportAsFcpxml": "FCPXML로 내보내기"
   },
   "gettingStarted": {
     "title": "AutoSubs에 오신 것을 환영합니다",

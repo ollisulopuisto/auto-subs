@@ -1,9 +1,10 @@
 import type { Speaker, Subtitle } from "../types";
 import { generateSrt } from "./srt-utils.ts";
 import { generateTranscriptTxt } from "./transcript-txt.ts";
+import { generateFcpxml } from "./fcpxml-utils.ts";
 
 /** Export formats offered by the subtitle export menu. */
-export type SubtitleExportFormat = "srt" | "srt-speakers" | "txt" | "json";
+export type SubtitleExportFormat = "srt" | "srt-speakers" | "fcpxml" | "txt" | "json";
 
 /**
  * Formats whose file body is built straight from cues and speakers. `json`
@@ -29,6 +30,11 @@ export function subtitleExportDialogOptions(
         defaultPath: `${baseName}.srt`,
         filters: [{ name: "SRT Files", extensions: ["srt"] }],
       };
+    case "fcpxml":
+      return {
+        defaultPath: `${baseName}.fcpxml`,
+        filters: [{ name: "FCPXML Files", extensions: ["fcpxml"] }],
+      };
     case "txt":
       return {
         defaultPath: `${baseName}.txt`,
@@ -52,10 +58,16 @@ export function buildSubtitleExportContent(
   subtitles: Subtitle[],
   speakers: Speaker[],
 ): string {
-  return format === "txt"
-    ? generateTranscriptTxt(subtitles, speakers)
-    : generateSrt(subtitles, {
+  switch (format) {
+    case "txt":
+      return generateTranscriptTxt(subtitles, speakers);
+    case "fcpxml":
+      return generateFcpxml(subtitles, { speakers });
+    case "srt":
+    case "srt-speakers":
+      return generateSrt(subtitles, {
         includeSpeakerLabels: format === "srt-speakers",
         speakers,
       });
+  }
 }

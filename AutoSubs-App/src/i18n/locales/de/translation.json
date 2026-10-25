@@ -91,8 +91,13 @@
       "json": {
         "title": "JSON-Rohdaten (.json)",
         "description": "Wortzeiten, Sprecher und Ihre Änderungen."
+      },
+      "fcpxml": {
+        "title": "FCPXML-Titel (.fcpxml)",
+        "description": "Final Cut Pro-Titel mit freiem Styling."
       }
-    }
+    },
+    "exportAsFcpxml": "Als FCPXML exportieren"
   },
   "actionBar": {
     "source": "Quelle",

@@ -91,8 +91,13 @@
       "json": {
         "title": "JSON brut (.json)",
         "description": "Temps des mots, locuteurs et modifications."
+      },
+      "fcpxml": {
+        "title": "Titres FCPXML (.fcpxml)",
+        "description": "Titres Final Cut Pro personnalisables."
       }
-    }
+    },
+    "exportAsFcpxml": "Exporter en FCPXML"
   },
   "actionBar": {
     "source": "Source",

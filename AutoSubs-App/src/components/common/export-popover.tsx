@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Captions, FileJson, FileText, LucideIcon, Users } from "lucide-react"
+import { Captions, Clapperboard, FileJson, FileText, LucideIcon, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useTranslation } from "react-i18next"
@@ -35,6 +35,13 @@ const EXPORT_FORMATS: ExportFormatConfig[] = [
         titleKey: 'importExport.exportFormats.srtSpeakers.title',
         descriptionKey: 'importExport.exportFormats.srtSpeakers.description',
         ariaLabelKey: 'importExport.exportAsSrtSpeakers',
+    },
+    {
+        format: 'fcpxml',
+        icon: Clapperboard,
+        titleKey: 'importExport.exportFormats.fcpxml.title',
+        descriptionKey: 'importExport.exportFormats.fcpxml.description',
+        ariaLabelKey: 'importExport.exportAsFcpxml',
     },
     {
         format: 'txt',
