@@ -1,0 +1,183 @@
+name: Build and Release macOS DMG
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (defaults to v + package.json version)'
+        required: false
+        type: string
+      draft:
+        description: 'Create draft release'
+        required: false
+        type: boolean
+        default: false
+      prerelease:
+        description: 'Mark as prerelease'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-dmg:
+    name: Build DMG (${{ matrix.title }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-14
+            arch: aarch64
+            target: aarch64-apple-darwin
+            features: mac-aarch
+            title: Apple Silicon
+          - runner: macos-13
+            arch: x86_64
+            target: x86_64-apple-darwin
+            features: mac-x86_64
+            title: Intel
+
+    runs-on: ${{ matrix.runner }}
+    continue-on-error: ${{ matrix.arch == 'x86_64' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Configure Xcode toolchain
+        run: |
+          echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> $GITHUB_ENV
+          echo "MACOSX_DEPLOYMENT_TARGET=13.3" >> $GITHUB_ENV
+          echo "CC=$(xcrun -f clang)" >> $GITHUB_ENV
+          echo "CXX=$(xcrun -f clang++)" >> $GITHUB_ENV
+
+      - name: Install dependencies
+        run: |
+          npm ci --prefix Adobe-Extension
+          npm ci --prefix AutoSubs-App
+
+      - name: Download ffmpeg binary
+        run: |
+          set -euo pipefail
+          mkdir -p AutoSubs-App/src-tauri/binaries
+          cd AutoSubs-App/src-tauri/binaries
+          ZIP_NAME="ffmpeg-${{ matrix.target }}.zip"
+          URL="https://github.com/tmoroney/ffmpeg-binaries/releases/download/V8.0.0/${ZIP_NAME}"
+          echo "Downloading $ZIP_NAME from $URL..."
+          curl -sSL -O "$URL"
+          unzip -jo "$ZIP_NAME"
+          chmod +x "ffmpeg-${{ matrix.target }}"
+          rm -f "$ZIP_NAME"
+
+      - name: Configure GGML flags for ARM64
+        if: matrix.arch == 'aarch64'
+        run: |
+          echo 'CFLAGS=-U__ARM_FEATURE_MATMUL_INT8' >> "$GITHUB_ENV"
+          echo 'CXXFLAGS=-U__ARM_FEATURE_MATMUL_INT8' >> "$GITHUB_ENV"
+          echo 'CMAKE_ARGS=-DGGML_I8MM=OFF -DGGML_NATIVE=OFF -DCMAKE_OSX_DEPLOYMENT_TARGET=13.3' >> "$GITHUB_ENV"
+
+      - name: Build Tauri DMG
+        env:
+          APPLE_IDENTITY: ${{ secrets.APPLE_IDENTITY }}
+        run: |
+          cd AutoSubs-App
+          if [ -n "$APPLE_IDENTITY" ]; then
+            export APPLE_SIGNING_IDENTITY="Developer ID Application: $APPLE_IDENTITY"
+          fi
+          npm run tauri build -- --bundles dmg --features "${{ matrix.features }}" -- --no-default-features
+
+      - name: Organize DMG files
+        id: organize_dmg
+        run: |
+          cd AutoSubs-App/src-tauri/target/release/bundle/dmg
+          echo "Built DMG bundle content:"
+          ls -la
+          mkdir -p "$RUNNER_TEMP/dmgs"
+          for f in *.dmg; do
+            if [ -f "$f" ]; then
+              cp "$f" "$RUNNER_TEMP/dmgs/"
+            fi
+          done
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dmg-${{ matrix.arch }}
+          path: ${{ runner.temp }}/dmgs/*.dmg
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: build-dmg
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Determine release tag
+        id: vars
+        run: |
+          if [ -n "${{ inputs.tag }}" ]; then
+            TAG="${{ inputs.tag }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${{ github.ref_name }}"
+          else
+            VER=$(node -p "require('./AutoSubs-App/package.json').version")
+            TAG="v${VER}"
+          fi
+          echo "Resolved release tag: $TAG"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Download all DMG artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist-dmg
+          merge-multiple: true
+
+      - name: List downloaded DMGs
+        run: |
+          ls -la dist-dmg/
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.vars.outputs.tag }}
+          DRAFT: ${{ inputs.draft || false }}
+          PRERELEASE: ${{ inputs.prerelease || false }}
+        run: |
+          EXTRA_FLAGS=()
+          if [ "$DRAFT" = "true" ]; then
+            EXTRA_FLAGS+=("--draft")
+          fi
+          if [ "$PRERELEASE" = "true" ]; then
+            EXTRA_FLAGS+=("--prerelease")
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists, uploading assets..."
+            gh release upload "$TAG" dist-dmg/*.dmg --clobber
+          else
+            echo "Creating release $TAG..."
+            gh release create "$TAG" dist-dmg/*.dmg \
+              --title "AutoSubs $TAG" \
+              --generate-notes \
+              "${EXTRA_FLAGS[@]}"
+          fi
