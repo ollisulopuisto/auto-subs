@@ -41,7 +41,6 @@
     "@vitejs/plugin-react": "^4.5.1",
     "babel-plugin-react-require": "^4.0.3",
     "babel-plugin-transform-scss": "^1.2.0",
-    "babel-preset-env": "^1.7.0",
     "core-js": "3",
     "cross-env": "^7.0.3",
     "fs-extra": "^10.0.0",
