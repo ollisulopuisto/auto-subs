@@ -36,12 +36,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: macos-26
+          - runner: macos-15
             arch: aarch64
             target: aarch64-apple-darwin
             features: mac-aarch
             title: Apple Silicon
-          - runner: macos-26-intel
+          - runner: macos-15-intel
             arch: x86_64
             target: x86_64-apple-darwin
             features: mac-x86_64
