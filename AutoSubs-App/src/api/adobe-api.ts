@@ -1,7 +1,8 @@
 import { invoke } from '@tauri-apps/api/core';
 
 export async function sendToAdobe(type: string, payload: any = {}, sessionId?: string, integration?: string) {
-  const finalSessionId = sessionId || `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  const randomPart = Array.from(crypto.getRandomValues(new Uint8Array(4)), b => b.toString(36)).join('');
+  const finalSessionId = sessionId || `session_${Date.now()}_${randomPart}`;
   await invoke<string>('send_to_adobe', {
     payload: {
       type,
