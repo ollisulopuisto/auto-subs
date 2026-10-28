@@ -158,7 +158,8 @@ export function AdobeProvider({ children }: { children: React.ReactNode }) {
 
   const sendRequestAndWait = (fn: (sessionId: string) => Promise<string>): Promise<any> => {
     return new Promise((resolve, reject) => {
-      const sessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      const randomPart = Array.from(crypto.getRandomValues(new Uint8Array(4)), b => b.toString(36)).join('');
+      const sessionId = `session_${Date.now()}_${randomPart}`;
       const timeout = setTimeout(() => {
         pendingRequests.current.delete(sessionId);
         reject(new Error('Request timed out'));

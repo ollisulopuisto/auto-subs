@@ -37,7 +37,7 @@ static std::vector<float> ComputeDctMatrix(int32_t num_rows, int32_t num_cols) {
   // this function is copied from
   // https://github.com/kaldi-asr/kaldi/blob/master/src/matrix/matrix-functions.cc#L592
 
-  std::vector<float> ans(num_rows * num_cols);
+  std::vector<float> ans(static_cast<size_t>(num_rows) * static_cast<size_t>(num_cols));
   float *p = ans.data();
 
   float normalizer = std::sqrt(1.0 / num_cols);  // normalizer for X_0
