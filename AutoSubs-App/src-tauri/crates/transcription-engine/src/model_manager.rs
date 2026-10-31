@@ -199,7 +199,7 @@ impl ModelManager {
                             Some(path) => extract_dir.join(path),
                             None => continue,
                         };
-                        if (&*file.name()).ends_with('/') {
+                        if file.name()?.ends_with('/') {
                             fs::create_dir_all(&outpath).ok();
                         } else {
                             if let Some(p) = outpath.parent() { fs::create_dir_all(p).ok(); }
