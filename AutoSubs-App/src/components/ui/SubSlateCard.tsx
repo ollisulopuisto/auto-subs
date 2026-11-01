@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { X } from "lucide-react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternalUrl } from "@/utils/url-security";
 
 type Props = {
   open: boolean;
@@ -233,8 +233,8 @@ export default function SubSlateCard({
                 className="ss-link"
                 onClick={() => {
                   // Sentinel Security: only allow safe web URLs
-                  if (url && (url.startsWith("https://") || url.startsWith("http://"))) {
-                    openUrl(url).catch(() => {});
+                  if (url) {
+                    void openExternalUrl(url);
                   }
                 }}
                 type="button"

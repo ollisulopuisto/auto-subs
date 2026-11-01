@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/animated-tabs";
 import { useTheme } from "@/components/providers/theme-provider";
+import { openExternalUrl } from "@/utils/url-security";
 import { SettingsDialog } from "@/components/dialogs/settings-dialog";
 import { SupportDialog } from "@/components/dialogs/support-dialog";
 import { ManageModelsDialog } from "@/components/settings/model-manager";
@@ -122,16 +123,14 @@ export function SettingsDropdown() {
           <DropdownMenuSeparator />
 
           <DropdownMenuGroup>
-            <DropdownMenuItem asChild className="cursor-pointer transition-none">
-              <a
-                href="https://github.com/tmoroney/auto-subs"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group"
-              >
-                <GitMerge />
-                <span>{t("settings.support.viewSource", "View Source")}</span>
-              </a>
+            <DropdownMenuItem
+              onClick={() => {
+                void openExternalUrl("https://github.com/tmoroney/auto-subs");
+              }}
+              className="cursor-pointer transition-none"
+            >
+              <GitMerge />
+              <span>{t("settings.support.viewSource", "View Source")}</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => setSupportDialogOpen(true)}

@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { PanelRight, RotateCcw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { platform } from "@tauri-apps/plugin-os";
+import { openExternalUrl } from "@/utils/url-security";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -77,10 +78,11 @@ function UpdateStatusIndicator({
 
   if (phase === "available-link") {
     return (
-      <a
-        href="https://github.com/tmoroney/auto-subs/releases/latest"
-        target="_blank"
-        rel="noopener noreferrer"
+      <button
+        type="button"
+        onClick={() => {
+          void openExternalUrl("https://github.com/tmoroney/auto-subs/releases/latest");
+        }}
         className="flex h-7 min-w-0 items-center gap-1.5 rounded-sm px-1.5 text-xs text-blue-600 transition-colors hover:bg-blue-100 hover:text-blue-700 dark:text-blue-400 dark:hover:bg-blue-900 dark:hover:text-blue-300"
       >
         <RotateCcw className="size-3 shrink-0" />
@@ -88,7 +90,7 @@ function UpdateStatusIndicator({
           {t("titlebar.update.newVersionAvailable", "Update Available")}
           {version ? ` (v${version})` : ""}
         </span>
-      </a>
+      </button>
     );
   }
 

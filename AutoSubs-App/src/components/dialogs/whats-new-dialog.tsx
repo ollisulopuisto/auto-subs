@@ -2,7 +2,7 @@ import * as React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { getVersion } from "@tauri-apps/api/app";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternalUrl } from "@/utils/url-security";
 import { useSettingsStore } from "@/stores/settings-store";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -112,10 +112,8 @@ export function WhatsNewDialog() {
   const handleOpenRelease = React.useCallback(() => {
     const url = release?.html_url ?? RELEASE_PAGE_URL;
     // Sentinel Security: restrict external URL launches to safe web protocols
-    if (url && (url.startsWith("https://") || url.startsWith("http://"))) {
-      openUrl(url).catch(() => {
-        /* ignore */
-      });
+    if (url) {
+      void openExternalUrl(url);
     }
   }, [release]);
 
@@ -241,8 +239,8 @@ export function WhatsNewDialog() {
                       onClick={(e) => {
                         e.preventDefault();
                         // Sentinel Security: restrict external URL launches to safe web protocols
-                        if (href && (href.startsWith("https://") || href.startsWith("http://"))) {
-                          openUrl(href).catch(() => {});
+                        if (href) {
+                          void openExternalUrl(href);
                         }
                       }}
                     >

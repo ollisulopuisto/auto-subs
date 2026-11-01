@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ExternalLink, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ask } from "@tauri-apps/plugin-dialog";
+import { openExternalUrl } from "@/utils/url-security";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -109,23 +110,29 @@ export function ManageModelsDialog({
                           {model.repositoryUrl ? (
                             <a
                               href={model.repositoryUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-primary hover:underline"
+                              className="inline-flex items-center gap-1 text-primary hover:underline cursor-pointer"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                void openExternalUrl(model.repositoryUrl);
+                              }}
                             >
                               {t("models.aligner.repository")}
                               <ExternalLink className="size-3" />
                             </a>
                           ) : null}
-                          <a
-                            href={model.license.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-primary hover:underline"
-                          >
-                            {t("models.aligner.licenseLink")}
-                            <ExternalLink className="size-3" />
-                          </a>
+                          {model.license?.url ? (
+                            <a
+                              href={model.license.url}
+                              className="inline-flex items-center gap-1 text-primary hover:underline cursor-pointer"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                void openExternalUrl(model.license?.url);
+                              }}
+                            >
+                              {t("models.aligner.licenseLink")}
+                              <ExternalLink className="size-3" />
+                            </a>
+                          ) : null}
                         </div>
                       </div>
                     ) : null}
