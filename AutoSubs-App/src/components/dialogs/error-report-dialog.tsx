@@ -1,7 +1,7 @@
 import * as React from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { writeText } from "@tauri-apps/plugin-clipboard-manager"
-import { openUrl } from "@tauri-apps/plugin-opener"
+import { openExternalUrl } from "@/utils/url-security"
 import { platform } from "@tauri-apps/plugin-os"
 import { getVersion as getAppVersion } from "@tauri-apps/api/app"
 import { AlertCircle, ExternalLink, Terminal } from "lucide-react"
@@ -124,7 +124,7 @@ export function ErrorReportDialog({
       const issueUrl = `${GITHUB_ISSUE_BASE}?${params.toString()}`
 
       // Open the issue
-      await openUrl(issueUrl)
+      await openExternalUrl(issueUrl)
     } catch (err) {
       console.error("[ErrorReportDialog] copy and report failed:", err)
     }

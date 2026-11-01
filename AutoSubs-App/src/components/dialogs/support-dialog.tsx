@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ExternalLink, Coffee, Loader2 } from "lucide-react";
+import { openExternalUrl } from "@/utils/url-security";
 import {
   Dialog,
   DialogContent,
@@ -44,18 +45,14 @@ export function SupportDialog({ open, onOpenChange }: SupportDialogProps) {
               </div>
 
               <Button
-                asChild
-                className="w-full bg-[#FFDD00] hover:bg-[#FFDD00]/90 text-black rounded-full font-bold h-10 text-sm shadow-md shadow-yellow-500/20 dark:shadow-none transition-all active:scale-95 border-none"
+                type="button"
+                className="w-full bg-[#FFDD00] hover:bg-[#FFDD00]/90 text-black rounded-full font-bold h-10 text-sm shadow-md shadow-yellow-500/20 dark:shadow-none transition-all active:scale-95 border-none flex items-center justify-center gap-2"
+                onClick={() => {
+                  void openExternalUrl("https://buymeacoffee.com/tmoroney");
+                }}
               >
-                <a
-                  href="https://buymeacoffee.com/tmoroney"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2"
-                >
-                  <Coffee className="size-4" />
-                  Donate
-                </a>
+                <Coffee className="size-4" />
+                Donate
               </Button>
             </CardContent>
           </Card>
@@ -185,7 +182,14 @@ function SubSlatePromoCard() {
             </button>
           </form>
 
-          <a className="ss-link" href="https://subslate.app" target="_blank" rel="noopener noreferrer">
+          <a
+            className="ss-link cursor-pointer"
+            href="https://subslate.app"
+            onClick={(e) => {
+              e.preventDefault();
+              void openExternalUrl("https://subslate.app");
+            }}
+          >
             subslate.app <ExternalLink className="size-2 inline" />
           </a>
         </div>
