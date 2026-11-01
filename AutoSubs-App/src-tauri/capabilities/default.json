@@ -171,7 +171,9 @@
       "identifier": "opener:allow-open-url",
       "allow": [
         { "url": "https://github.com/tmoroney/auto-subs" },
-        { "url": "https://github.com/tmoroney/auto-subs/*" }
+        { "url": "https://github.com/tmoroney/auto-subs/*" },
+        { "url": "https://subslate.app" },
+        { "url": "https://subslate.app/*" }
       ]
     }
   ]
