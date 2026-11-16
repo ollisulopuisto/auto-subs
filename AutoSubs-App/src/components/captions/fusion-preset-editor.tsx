@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { guardIme } from "@/lib/ime-enter";
 import {
     cancelPresetEdit,
     ensureCaptionPreviewDir,
@@ -206,10 +207,9 @@ export function FusionPresetEditor({ preset, onDone }: FusionPresetEditorProps) 
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder={t("captions.preset.namePlaceholder")}
-                    onKeyDown={(e) => {
-                        if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+                    onKeyDown={guardIme((e: React.KeyboardEvent<HTMLInputElement>) => {
                         if (e.key === "Enter" && !busy) void handleSave();
-                    }}
+                    })}
                 />
             </div>
 
