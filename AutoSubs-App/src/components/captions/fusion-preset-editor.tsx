@@ -207,6 +207,7 @@ export function FusionPresetEditor({ preset, onDone }: FusionPresetEditorProps) 
                     onChange={(e) => setName(e.target.value)}
                     placeholder={t("captions.preset.namePlaceholder")}
                     onKeyDown={(e) => {
+                        if (e.nativeEvent.isComposing || e.keyCode === 229) return;
                         if (e.key === "Enter" && !busy) void handleSave();
                     }}
                 />
