@@ -56,5 +56,13 @@
     "typescript": "^5.8.3",
     "vite": "^6.4.5",
     "vite-cep-plugin": "^2.2.0"
+  },
+  "overrides": {
+    "jsxbin": {
+      "glob": "^14.0.6"
+    },
+    "archiver-utils": {
+      "glob": "^14.0.6"
+    }
   }
 }
